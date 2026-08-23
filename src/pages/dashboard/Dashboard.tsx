@@ -1,5 +1,5 @@
-import { useDashboard } from '../features/dashboard/useDashboard'
-import type { VisitResponse } from '../features/dashboard/dashboardApi'
+import { useDashboard } from '../../features/dashboard/useDashboard'
+import { VisitTable } from './cards/VisitTable'
 import {
   Users,
   UserCheck,
@@ -7,8 +7,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Clock,
-  LogOut,
-  Loader2,
+  Moon,
 } from 'lucide-react'
 
 export default function Dashboard() {
@@ -23,14 +22,26 @@ export default function Dashboard() {
     checkingOutVisitId,
   } = useDashboard()
 
-  if (isLoading) return <DashboardSkeleton />
-
-  if (error && !data) {
-    return <DashboardError message={error} onRetry={refresh} />
+  if (isLoading) {
+    return <DashboardSkeleton />
   }
 
-  const { summary, activeVisitors, overdueVisitors, recentlyCheckedOut } =
-    data!
+  if (error && !data) {
+    return (
+      <DashboardError
+        message={error}
+        onRetry={refresh}
+      />
+    )
+  }
+
+  const {
+    summary,
+    activeVisitors,
+    overdueVisitors,
+    overnightVisitors,
+    recentlyCheckedOut,
+  } = data!
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -45,6 +56,7 @@ export default function Dashboard() {
             <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
               <Clock size={11} />
               Updated {formatTime(lastUpdated)}
+
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 ml-1 animate-[pulse_2s_ease-in-out_infinite]" />
             </p>
           )}
@@ -65,7 +77,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <SummaryCard
           label="On Premises"
           value={summary.currentlyOnPremises}
@@ -94,11 +106,19 @@ export default function Dashboard() {
           color={summary.overdueCount > 0 ? 'amber' : 'gray'}
           highlight={summary.overdueCount > 0}
         />
+
+        <SummaryCard
+          label="Overnight"
+          value={summary.overnightCount}
+          icon={<Moon size={18} />}
+          color={summary.overnightCount > 0 ? 'purple' : 'gray'}
+          highlight={summary.overnightCount > 0}
+        />
       </div>
 
       {/* Active + Overdue */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <VisitorTable
+        <VisitTable
           title="Currently On Premises"
           visitors={activeVisitors}
           emptyMessage="No visitors currently on premises"
@@ -107,7 +127,7 @@ export default function Dashboard() {
           showCheckout
         />
 
-        <VisitorTable
+        <VisitTable
           title="Overdue Visitors"
           visitors={overdueVisitors}
           emptyMessage="No overdue visitors"
@@ -118,8 +138,21 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Overnight */}
+      <div className="mb-6">
+        <VisitTable
+          title="Overnight Visitors"
+          visitors={overnightVisitors}
+          emptyMessage="No overnight visitors"
+          checkOut={checkOut}
+          checkingOutVisitId={checkingOutVisitId}
+          showCheckout
+          overnight
+        />
+      </div>
+
       {/* Recently checked out */}
-      <VisitorTable
+      <VisitTable
         title="Recently Checked Out"
         visitors={recentlyCheckedOut}
         emptyMessage="No visitors checked out yet today"
@@ -135,30 +168,30 @@ interface SummaryCardProps {
   label: string
   value: number
   icon: React.ReactNode
-  color: 'green' | 'blue' | 'gray' | 'amber'
+  color: 'green' | 'blue' | 'gray' | 'amber' | 'purple'
   highlight?: boolean
 }
 
 const COLOR_MAP = {
   green: {
-    bg: 'bg-green-50',
     icon: 'bg-green-100 text-green-600',
     value: 'text-green-700',
   },
   blue: {
-    bg: 'bg-blue-50',
     icon: 'bg-blue-100 text-blue-600',
     value: 'text-blue-700',
   },
   gray: {
-    bg: 'bg-gray-50',
     icon: 'bg-gray-100 text-gray-500',
     value: 'text-gray-700',
   },
   amber: {
-    bg: 'bg-amber-50',
     icon: 'bg-amber-100 text-amber-600',
     value: 'text-amber-700',
+  },
+  purple: {
+    icon: 'bg-purple-100 text-purple-600',
+    value: 'text-purple-700',
   },
 } as const
 
@@ -175,9 +208,11 @@ function SummaryCard({
     <div
       className={[
         'rounded-xl p-5 border transition-all duration-200',
-        highlight
+        highlight && color === 'amber'
           ? 'border-amber-200 bg-amber-50 shadow-[0_0_0_3px_rgba(251,191,36,0.12)]'
-          : 'border-gray-100 bg-white',
+          : highlight && color === 'purple'
+            ? 'border-purple-200 bg-purple-50 shadow-[0_0_0_3px_rgba(168,85,247,0.12)]'
+            : 'border-gray-100 bg-white',
       ].join(' ')}
     >
       <div className="flex items-center justify-between mb-4">
@@ -201,159 +236,6 @@ function SummaryCard({
   )
 }
 
-/* Visitor table */
-
-interface VisitorTableProps {
-  title: string
-  visitors: VisitResponse[]
-  emptyMessage: string
-  showCheckout: boolean
-  checkOut?: (visitId: string) => Promise<void>
-  checkingOutVisitId?: string | null
-  overdue?: boolean
-}
-
-function VisitorTable({
-  title,
-  visitors,
-  emptyMessage,
-  showCheckout,
-  checkOut,
-  checkingOutVisitId,
-  overdue,
-}: VisitorTableProps) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-      {/* Table header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-        <h2 className="font-display font-bold text-sm text-neutral-900 tracking-tight">
-          {title}
-        </h2>
-
-        <span
-          className={[
-            'text-xs font-semibold px-2 py-0.5 rounded-full',
-            overdue && visitors.length > 0
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-gray-100 text-gray-500',
-          ].join(' ')}
-        >
-          {visitors.length}
-        </span>
-      </div>
-
-      {/* Rows */}
-      {visitors.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-          <span className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-3">
-            <Users size={18} className="text-gray-300" />
-          </span>
-
-          <p className="text-sm text-gray-400">{emptyMessage}</p>
-        </div>
-      ) : (
-        <ul role="list" className="divide-y divide-gray-50">
-          {visitors.map((visit) => (
-            <VisitorRow
-              key={visit.id}
-              visit={visit}
-              showCheckout={showCheckout}
-              onCheckOut={checkOut}
-              isCheckingOut={checkingOutVisitId === visit.id}
-              overdue={overdue}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-/* Visitor row */
-
-interface VisitorRowProps {
-  visit: VisitResponse
-  showCheckout: boolean
-  onCheckOut?: (visitId: string) => Promise<void>
-  isCheckingOut: boolean
-  overdue?: boolean
-}
-
-function VisitorRow({
-  visit,
-  showCheckout,
-  onCheckOut,
-  isCheckingOut,
-  overdue,
-}: VisitorRowProps) {
-  const initials = visit.profile.name
-    .split(' ')
-    .slice(0, 2)
-    .map((name) => name[0]?.toUpperCase() ?? '')
-    .join('')
-
-  return (
-    <li className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors duration-100">
-      {/* Avatar */}
-      <div
-        className={[
-          'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold',
-          overdue
-            ? 'bg-amber-100 text-amber-700'
-            : 'bg-green-100 text-green-700',
-        ].join(' ')}
-      >
-        {initials}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-neutral-900 truncate">
-          {visit.profile.name}
-        </p>
-
-        <p className="text-xs text-gray-400 truncate">
-          {visit.zoneName ? `${visit.zoneName} · ` : ''}
-          {visit.visitorType} · {formatTime(new Date(visit.checkInTime))}
-        </p>
-      </div>
-
-      {/* Overdue badge */}
-      {overdue && (
-        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">
-          Overdue
-        </span>
-      )}
-
-      {/* Checkout button */}
-      {showCheckout && onCheckOut && (
-        <button
-          onClick={() => onCheckOut(visit.id)}
-          disabled={isCheckingOut}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-          aria-label={`Check out ${visit.profile.name}`}
-        >
-          {isCheckingOut ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <LogOut size={12} />
-          )}
-
-          {isCheckingOut ? 'Checking out…' : 'Check out'}
-        </button>
-      )}
-
-      {/* Checkout time for recently checked out */}
-      {!showCheckout && visit.checkOutTime && (
-        <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-          <Clock size={11} />
-          {formatTime(new Date(visit.checkOutTime))}
-        </span>
-      )}
-    </li>
-  )
-}
-
 /* Skeleton */
 
 function DashboardSkeleton() {
@@ -362,8 +244,8 @@ function DashboardSkeleton() {
       <div className="h-8 w-40 bg-gray-100 rounded-lg mb-2" />
       <div className="h-3 w-32 bg-gray-100 rounded mb-8" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
             className="bg-gray-50 rounded-xl h-28 border border-gray-100"
@@ -375,6 +257,8 @@ function DashboardSkeleton() {
         <div className="bg-gray-50 rounded-xl h-64 border border-gray-100" />
         <div className="bg-gray-50 rounded-xl h-64 border border-gray-100" />
       </div>
+
+      <div className="bg-gray-50 rounded-xl h-56 border border-gray-100 mb-6" />
 
       <div className="bg-gray-50 rounded-xl h-48 border border-gray-100" />
     </div>
@@ -388,7 +272,10 @@ interface DashboardErrorProps {
   onRetry: () => void
 }
 
-function DashboardError({ message, onRetry }: DashboardErrorProps) {
+function DashboardError({
+  message,
+  onRetry,
+}: DashboardErrorProps) {
   return (
     <div className="max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
       <span className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
@@ -399,7 +286,9 @@ function DashboardError({ message, onRetry }: DashboardErrorProps) {
         Failed to load dashboard
       </p>
 
-      <p className="text-sm text-gray-400 mb-6 max-w-xs">{message}</p>
+      <p className="text-sm text-gray-400 mb-6 max-w-xs">
+        {message}
+      </p>
 
       <button
         onClick={onRetry}

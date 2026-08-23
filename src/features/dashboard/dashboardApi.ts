@@ -24,8 +24,6 @@ export interface VisitResponse {
   siteId: string
   zoneId: string | null
   zoneName: string | null
-  hostId: string | null
-  hostName: string | null
   createdById: string
   createdByName: string
   checkInTime: string

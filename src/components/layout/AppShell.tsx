@@ -12,7 +12,6 @@ import {
   Menu,
   X,
   ChevronRight,
-  Shield,
 } from 'lucide-react'
 
 interface NavItem {
@@ -62,7 +61,7 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
   MANAGER: 'Manager',
   STAFF: 'Staff',
 }
@@ -173,16 +172,6 @@ export default function AppShell() {
               </li>
             ))}
           </ul>
-
-          {/* Super Admin section label */}
-          {isRole('ADMIN') && (
-            <div className="mt-6 mb-2 px-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Shield size={11} />
-                Admin
-              </p>
-            </div>
-          )}
         </nav>
 
         {/* User footer */}

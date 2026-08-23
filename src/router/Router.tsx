@@ -38,7 +38,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: ROUTE_PATHS.DASHBOARD,
-                lazy: () => import('../pages/Dashboard')
+                lazy: () => import('../pages/dashboard/Dashboard')
                   .then((m) => ({ Component: m.default })),
               },
               {
