@@ -1,5 +1,5 @@
 import { useDashboard } from '../features/dashboard/useDashboard'
-import type { VisitorRow } from '../features/dashboard/dashboardApi'
+import type { VisitResponse } from '../features/dashboard/dashboardApi'
 import {
   Users,
   UserCheck,
@@ -20,11 +20,14 @@ export default function Dashboard() {
     lastUpdated,
     refresh,
     checkOut,
-    checkingOutId,
+    checkingOutVisitId,
   } = useDashboard()
 
   if (isLoading) return <DashboardSkeleton />
-  if (error && !data) return <DashboardError message={error} onRetry={refresh} />
+
+  if (error && !data) {
+    return <DashboardError message={error} onRetry={refresh} />
+  }
 
   const { summary, activeVisitors, overdueVisitors, recentlyCheckedOut } =
     data!
@@ -37,6 +40,7 @@ export default function Dashboard() {
           <h1 className="font-display text-2xl font-extrabold text-neutral-900 tracking-tight">
             Dashboard
           </h1>
+
           {lastUpdated && (
             <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
               <Clock size={11} />
@@ -68,18 +72,21 @@ export default function Dashboard() {
           icon={<Users size={18} />}
           color="green"
         />
+
         <SummaryCard
           label="Checked In Today"
           value={summary.checkedInToday}
           icon={<UserCheck size={18} />}
           color="blue"
         />
+
         <SummaryCard
           label="Checked Out Today"
           value={summary.checkedOutToday}
           icon={<UserMinus size={18} />}
           color="gray"
         />
+
         <SummaryCard
           label="Overdue"
           value={summary.overdueCount}
@@ -96,15 +103,16 @@ export default function Dashboard() {
           visitors={activeVisitors}
           emptyMessage="No visitors currently on premises"
           checkOut={checkOut}
-          checkingOutId={checkingOutId}
+          checkingOutVisitId={checkingOutVisitId}
           showCheckout
         />
+
         <VisitorTable
           title="Overdue Visitors"
           visitors={overdueVisitors}
           emptyMessage="No overdue visitors"
           checkOut={checkOut}
-          checkingOutId={checkingOutId}
+          checkingOutVisitId={checkingOutVisitId}
           showCheckout
           overdue
         />
@@ -122,6 +130,7 @@ export default function Dashboard() {
 }
 
 /* Summary card */
+
 interface SummaryCardProps {
   label: string
   value: number
@@ -151,10 +160,17 @@ const COLOR_MAP = {
     icon: 'bg-amber-100 text-amber-600',
     value: 'text-amber-700',
   },
-}
+} as const
 
-function SummaryCard({ label, value, icon, color, highlight }: SummaryCardProps) {
+function SummaryCard({
+  label,
+  value,
+  icon,
+  color,
+  highlight,
+}: SummaryCardProps) {
   const c = COLOR_MAP[color]
+
   return (
     <div
       className={[
@@ -168,11 +184,17 @@ function SummaryCard({ label, value, icon, color, highlight }: SummaryCardProps)
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
           {label}
         </p>
-        <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${c.icon}`}>
+
+        <span
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${c.icon}`}
+        >
           {icon}
         </span>
       </div>
-      <p className={`font-display text-3xl font-extrabold tracking-tight ${c.value}`}>
+
+      <p
+        className={`font-display text-3xl font-extrabold tracking-tight ${c.value}`}
+      >
         {value}
       </p>
     </div>
@@ -180,13 +202,14 @@ function SummaryCard({ label, value, icon, color, highlight }: SummaryCardProps)
 }
 
 /* Visitor table */
+
 interface VisitorTableProps {
   title: string
-  visitors: VisitorRow[]
+  visitors: VisitResponse[]
   emptyMessage: string
   showCheckout: boolean
-  checkOut?: (id: string) => Promise<void>
-  checkingOutId?: string | null
+  checkOut?: (visitId: string) => Promise<void>
+  checkingOutVisitId?: string | null
   overdue?: boolean
 }
 
@@ -196,7 +219,7 @@ function VisitorTable({
   emptyMessage,
   showCheckout,
   checkOut,
-  checkingOutId,
+  checkingOutVisitId,
   overdue,
 }: VisitorTableProps) {
   return (
@@ -206,6 +229,7 @@ function VisitorTable({
         <h2 className="font-display font-bold text-sm text-neutral-900 tracking-tight">
           {title}
         </h2>
+
         <span
           className={[
             'text-xs font-semibold px-2 py-0.5 rounded-full',
@@ -224,17 +248,18 @@ function VisitorTable({
           <span className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-3">
             <Users size={18} className="text-gray-300" />
           </span>
+
           <p className="text-sm text-gray-400">{emptyMessage}</p>
         </div>
       ) : (
         <ul role="list" className="divide-y divide-gray-50">
-          {visitors.map((visitor) => (
+          {visitors.map((visit) => (
             <VisitorRow
-              key={visitor.id}
-              visitor={visitor}
+              key={visit.id}
+              visit={visit}
               showCheckout={showCheckout}
               onCheckOut={checkOut}
-              isCheckingOut={checkingOutId === visitor.id}
+              isCheckingOut={checkingOutVisitId === visit.id}
               overdue={overdue}
             />
           ))}
@@ -245,25 +270,26 @@ function VisitorTable({
 }
 
 /* Visitor row */
+
 interface VisitorRowProps {
-  visitor: VisitorRow
+  visit: VisitResponse
   showCheckout: boolean
-  onCheckOut?: (id: string) => Promise<void>
+  onCheckOut?: (visitId: string) => Promise<void>
   isCheckingOut: boolean
   overdue?: boolean
 }
 
 function VisitorRow({
-  visitor,
+  visit,
   showCheckout,
   onCheckOut,
   isCheckingOut,
   overdue,
 }: VisitorRowProps) {
-  const initials = visitor.name
+  const initials = visit.profile.name
     .split(' ')
     .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? '')
+    .map((name) => name[0]?.toUpperCase() ?? '')
     .join('')
 
   return (
@@ -283,13 +309,12 @@ function VisitorRow({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-neutral-900 truncate">
-          {visitor.name}
+          {visit.profile.name}
         </p>
+
         <p className="text-xs text-gray-400 truncate">
-          {visitor.zoneName
-            ? `${visitor.zoneName} · `
-            : ''}
-          {visitor.visitorType} · {formatTime(new Date(visitor.checkInTime))}
+          {visit.zoneName ? `${visit.zoneName} · ` : ''}
+          {visit.visitorType} · {formatTime(new Date(visit.checkInTime))}
         </p>
       </div>
 
@@ -303,25 +328,26 @@ function VisitorRow({
       {/* Checkout button */}
       {showCheckout && onCheckOut && (
         <button
-          onClick={() => onCheckOut(visitor.id)}
+          onClick={() => onCheckOut(visit.id)}
           disabled={isCheckingOut}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-          aria-label={`Check out ${visitor.name}`}
+          aria-label={`Check out ${visit.profile.name}`}
         >
           {isCheckingOut ? (
             <Loader2 size={12} className="animate-spin" />
           ) : (
             <LogOut size={12} />
           )}
+
           {isCheckingOut ? 'Checking out…' : 'Check out'}
         </button>
       )}
 
-      {/* Checkout time for recently-checked-out */}
-      {!showCheckout && visitor.checkOutTime && (
+      {/* Checkout time for recently checked out */}
+      {!showCheckout && visit.checkOutTime && (
         <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
           <Clock size={11} />
-          {formatTime(new Date(visitor.checkOutTime))}
+          {formatTime(new Date(visit.checkOutTime))}
         </span>
       )}
     </li>
@@ -329,42 +355,52 @@ function VisitorRow({
 }
 
 /* Skeleton */
+
 function DashboardSkeleton() {
   return (
     <div className="max-w-7xl mx-auto animate-pulse">
       <div className="h-8 w-40 bg-gray-100 rounded-lg mb-2" />
       <div className="h-3 w-32 bg-gray-100 rounded mb-8" />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-gray-50 rounded-xl h-28 border border-gray-100" />
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="bg-gray-50 rounded-xl h-28 border border-gray-100"
+          />
         ))}
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-gray-50 rounded-xl h-64 border border-gray-100" />
         <div className="bg-gray-50 rounded-xl h-64 border border-gray-100" />
       </div>
+
       <div className="bg-gray-50 rounded-xl h-48 border border-gray-100" />
     </div>
   )
 }
 
 /* Error */
-function DashboardError({
-  message,
-  onRetry,
-}: {
+
+interface DashboardErrorProps {
   message: string
   onRetry: () => void
-}) {
+}
+
+function DashboardError({ message, onRetry }: DashboardErrorProps) {
   return (
     <div className="max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
       <span className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
         <AlertTriangle size={20} className="text-red-400" />
       </span>
+
       <p className="text-sm font-semibold text-neutral-900 mb-1">
         Failed to load dashboard
       </p>
+
       <p className="text-sm text-gray-400 mb-6 max-w-xs">{message}</p>
+
       <button
         onClick={onRetry}
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-semibold hover:bg-green-500 transition-colors duration-150"
@@ -377,6 +413,7 @@ function DashboardError({
 }
 
 /* Helpers */
+
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], {
     hour: '2-digit',

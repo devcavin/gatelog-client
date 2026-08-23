@@ -15,7 +15,7 @@ import {
 } from "./jwt";
 import { tokenStorage } from "./tokenStorage";
 
-export type Role = "SUPER_ADMIN" | "MANAGER" | "STAFF";
+export type Role = "ADMIN" | "MANAGER" | "STAFF";
 
 export interface AuthUser {
   userId: string;

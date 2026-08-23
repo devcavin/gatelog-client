@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { dashboardApi, type DashboardFeed } from './dashboardApi'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import {
+  dashboardApi,
+  type DashboardFeed,
+} from './dashboardApi'
 
 const POLL_INTERVAL_MS = 30_000
 
@@ -10,128 +18,209 @@ interface UseDashboardReturn {
   error: string | null
   lastUpdated: Date | null
   refresh: () => Promise<void>
-  checkOut: (visitorId: string) => Promise<void>
-  checkingOutId: string | null
+  checkOut: (visitId: string) => Promise<void>
+  checkingOutVisitId: string | null
 }
 
 export function useDashboard(): UseDashboardReturn {
-  const [data, setData]               = useState<DashboardFeed | null>(null)
-  const [isLoading, setIsLoading]     = useState(true)
+  const [data, setData] = useState<DashboardFeed | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
+  const [checkingOutVisitId, setCheckingOutVisitId] =
+    useState<string | null>(null)
 
-  const isMountedRef  = useRef(true)
-  const dataRef       = useRef<DashboardFeed | null>(null)
-  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const dataRef = useRef<DashboardFeed | null>(null)
 
-  // keep dataRef in sync so fetchData can read latest data
-  // without being a dependency of fetchData itself
+  /*
+   * Keep the latest dashboard data available to callbacks
+   * without making those callbacks depend on `data`.
+   */
   useEffect(() => {
     dataRef.current = data
   }, [data])
 
-  // stable fetch - never recreated, no dependency on data state
-  const fetchData = useRef(async (silent = false) => {
-    if (!isMountedRef.current) return
-
+  /*
+   * Fetch dashboard data.
+   *
+   * This callback does not depend on component state, so its
+   * identity remains stable.
+   */
+  const fetchData = useCallback(async (silent = false) => {
     if (!silent) {
-      if (dataRef.current) setIsRefreshing(true)
-      else setIsLoading(true)
+      if (dataRef.current) {
+        setIsRefreshing(true)
+      } else {
+        setIsLoading(true)
+      }
     }
 
     try {
-      const { data: feed } = await dashboardApi.getFeed()
-      if (!isMountedRef.current) return
-      setData(feed)
+      const response = await dashboardApi.getFeed()
+
+      setData(response.data)
       setLastUpdated(new Date())
       setError(null)
     } catch {
-      if (!isMountedRef.current) return
+      /*
+       * Silent refreshes should preserve stale dashboard data.
+       */
       if (!silent) {
-        setError('Failed to load dashboard. Check your connection.')
+        setError(
+          'Failed to load dashboard. Check your connection.',
+        )
       }
-      // on silent failure keep stale data - do not wipe the dashboard
     } finally {
-      if (isMountedRef.current) {
+      if (!silent) {
         setIsLoading(false)
         setIsRefreshing(false)
       }
     }
-  }).current
-
-  // initial load - runs once
-  useEffect(() => {
-    isMountedRef.current = true
-    fetchData(false)
-    return () => { isMountedRef.current = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // auto-poll - stable interval, never reset by data changes
+  /*
+   * Initial dashboard load.
+   *
+   * queueMicrotask prevents the state updates from occurring
+   * synchronously during the effect execution itself.
+   */
   useEffect(() => {
-    intervalRef.current = setInterval(() => fetchData(true), POLL_INTERVAL_MS)
+    const load = () => {
+      void fetchData(false)
+    }
+
+    queueMicrotask(load)
+  }, [fetchData])
+
+  /*
+   * Automatic polling.
+   */
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void fetchData(true)
+    }, POLL_INTERVAL_MS)
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      window.clearInterval(intervalId)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchData])
 
-  // refresh tab on visibility change
+  /*
+   * Refresh when the user returns to the browser tab.
+   */
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') fetchData(true)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchData(true)
+      }
     }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange,
+    )
+
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange,
+      )
+    }
+  }, [fetchData])
+
+  /*
+   * Manual dashboard refresh.
+   */
   const refresh = useCallback(async () => {
     await fetchData(false)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchData])
 
-  const checkOut = useCallback(async (visitorId: string) => {
-    setCheckingOutId(visitorId)
-    try {
-      await dashboardApi.checkOut(visitorId)
-      setData((prev) => {
-        if (!prev) return prev
-        const wasActive  = prev.activeVisitors.find((v) => v.id === visitorId)
-        const wasOverdue = prev.overdueVisitors.find((v) => v.id === visitorId)
-        const checkedOut = wasActive ?? wasOverdue
-        if (!checkedOut) return prev
+  /*
+   * Check out a visit and optimistically update the dashboard.
+   */
+  const checkOut = useCallback(
+    async (visitId: string) => {
+      setCheckingOutVisitId(visitId)
 
-        const updated = {
-          ...checkedOut,
-          status: 'CHECKED_OUT',
-          checkOutTime: new Date().toISOString(),
-        }
+      try {
+        await dashboardApi.checkOut(visitId)
 
-        return {
-          ...prev,
-          summary: {
-            ...prev.summary,
-            currentlyOnPremises: Math.max(0, prev.summary.currentlyOnPremises - 1),
-            checkedOutToday: prev.summary.checkedOutToday + 1,
-            overdueCount: wasOverdue
-              ? Math.max(0, prev.summary.overdueCount - 1)
-              : prev.summary.overdueCount,
-          },
-          activeVisitors:     prev.activeVisitors.filter((v) => v.id !== visitorId),
-          overdueVisitors:    prev.overdueVisitors.filter((v) => v.id !== visitorId),
-          recentlyCheckedOut: [updated, ...prev.recentlyCheckedOut].slice(0, 10),
-        }
-      })
-    } catch {
-      await fetchData(true)
-    } finally {
-      setCheckingOutId(null)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+        setData((previous) => {
+          if (!previous) {
+            return previous
+          }
+
+          const activeVisit = previous.activeVisitors.find(
+            (visit) => visit.id === visitId,
+          )
+
+          const overdueVisit = previous.overdueVisitors.find(
+            (visit) => visit.id === visitId,
+          )
+
+          const checkedOutVisit =
+            activeVisit ?? overdueVisit
+
+          if (!checkedOutVisit) {
+            return previous
+          }
+
+          const updatedVisit = {
+            ...checkedOutVisit,
+            status: 'CHECKED_OUT',
+            checkOutTime: new Date().toISOString(),
+          }
+
+          return {
+            ...previous,
+
+            summary: {
+              ...previous.summary,
+
+              currentlyOnPremises: Math.max(
+                0,
+                previous.summary.currentlyOnPremises - 1,
+              ),
+
+              checkedOutToday:
+                previous.summary.checkedOutToday + 1,
+
+              overdueCount: overdueVisit
+                ? Math.max(
+                    0,
+                    previous.summary.overdueCount - 1,
+                  )
+                : previous.summary.overdueCount,
+            },
+
+            activeVisitors:
+              previous.activeVisitors.filter(
+                (visit) => visit.id !== visitId,
+              ),
+
+            overdueVisitors:
+              previous.overdueVisitors.filter(
+                (visit) => visit.id !== visitId,
+              ),
+
+            recentlyCheckedOut: [
+              updatedVisit,
+              ...previous.recentlyCheckedOut,
+            ].slice(0, 10),
+          }
+        })
+      } catch {
+        /*
+         * If checkout fails, synchronize with the server.
+         */
+        await fetchData(true)
+      } finally {
+        setCheckingOutVisitId(null)
+      }
+    },
+    [fetchData],
+  )
 
   return {
     data,
@@ -141,6 +230,6 @@ export function useDashboard(): UseDashboardReturn {
     lastUpdated,
     refresh,
     checkOut,
-    checkingOutId,
+    checkingOutVisitId,
   }
 }

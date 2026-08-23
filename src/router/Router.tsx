@@ -34,7 +34,7 @@ export const router = createBrowserRouter([
 
           // manager + super admin only
           {
-            element: <ProtectedRoute allowedRoles={['MANAGER', 'SUPER_ADMIN']} />,
+            element: <ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />,
             children: [
               {
                 path: ROUTE_PATHS.DASHBOARD,
@@ -56,7 +56,7 @@ export const router = createBrowserRouter([
 
           // super admin only
           {
-            element: <ProtectedRoute allowedRoles={['SUPER_ADMIN']} />,
+            element: <ProtectedRoute allowedRoles={['ADMIN']} />,
             children: [
               {
                 path: ROUTE_PATHS.ADMIN,

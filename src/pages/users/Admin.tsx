@@ -40,7 +40,7 @@ export default function AdminPage() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-1">
-            Super Admin
+            Admin
           </p>
           <h1 className="font-display text-2xl font-extrabold text-neutral-900 tracking-tight">
             System Overview

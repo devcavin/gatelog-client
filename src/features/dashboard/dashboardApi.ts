@@ -1,17 +1,23 @@
 import { apiClient } from '../../api/client'
 
-export interface VisitorSummary {
+export interface DashboardSummary {
   currentlyOnPremises: number
   checkedInToday: number
   checkedOutToday: number
   overdueCount: number
+  overnightCount: number
   asOf: string
 }
 
-export interface VisitorRow {
+export interface VisitorProfileSummary {
   id: string
   name: string
   phone: string
+}
+
+export interface VisitResponse {
+  id: string
+  profile: VisitorProfileSummary
   visitorType: string
   purpose: string
   status: string
@@ -24,19 +30,21 @@ export interface VisitorRow {
   createdByName: string
   checkInTime: string
   checkOutTime: string | null
+  overnight: boolean
 }
 
 export interface DashboardFeed {
-  summary: VisitorSummary
-  activeVisitors: VisitorRow[]
-  overdueVisitors: VisitorRow[]
-  recentlyCheckedOut: VisitorRow[]
+  summary: DashboardSummary
+  activeVisitors: VisitResponse[]
+  overdueVisitors: VisitResponse[]
+  overnightVisitors: VisitResponse[]
+  recentlyCheckedOut: VisitResponse[]
 }
 
 export const dashboardApi = {
   getFeed: () =>
     apiClient.get<DashboardFeed>('/api/dashboard'),
 
-  checkOut: (visitorId: string) =>
-    apiClient.patch<VisitorRow>(`/api/visitors/${visitorId}/checkout`),
+  checkOut: (visitId: string) =>
+    apiClient.patch<VisitResponse>(`/api/visits/${visitId}/checkout`),
 }
