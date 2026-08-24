@@ -14,7 +14,7 @@ export const ROUTE_PATHS = {
 } as const;
 
 export const ROLE_DESTINATION_MAP: Record<Role, string> = {
-  SUPER_ADMIN: ROUTE_PATHS.ADMIN,
+  ADMIN: ROUTE_PATHS.ADMIN,
   MANAGER:     ROUTE_PATHS.DASHBOARD,
   STAFF:       ROUTE_PATHS.NEW_VISITOR,
 };
@@ -33,7 +33,7 @@ export function isPathAllowedForRole(path: string, role: Role): boolean {
   switch (role) {
     case 'STAFF':       return staffPaths.some(p => path.startsWith(p))
     case 'MANAGER':     return managerPaths.some(p => path.startsWith(p))
-    case 'SUPER_ADMIN': return adminPaths.some(p => path.startsWith(p))
+    case 'ADMIN': return adminPaths.some(p => path.startsWith(p))
     default:            return false
   }
 }

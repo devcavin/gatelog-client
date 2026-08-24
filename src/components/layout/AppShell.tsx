@@ -12,14 +12,13 @@ import {
   Menu,
   X,
   ChevronRight,
-  Shield,
 } from 'lucide-react'
 
 interface NavItem {
   label: string
   path: string
   icon: React.ReactNode
-  roles: Array<'SUPER_ADMIN' | 'MANAGER' | 'STAFF'>
+  roles: Array<'ADMIN' | 'MANAGER' | 'STAFF'>
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -27,42 +26,42 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Dashboard',
     path: ROUTE_PATHS.DASHBOARD,
     icon: <LayoutDashboard size={17} />,
-    roles: ['SUPER_ADMIN', 'MANAGER'],
+    roles: ['ADMIN', 'MANAGER'],
   },
   {
     label: 'New Visitor',
     path: ROUTE_PATHS.NEW_VISITOR,
     icon: <UserPlus size={17} />,
-    roles: ['SUPER_ADMIN', 'MANAGER', 'STAFF'],
+    roles: ['ADMIN', 'MANAGER', 'STAFF'],
   },
   {
     label: 'Visitors',
     path: ROUTE_PATHS.VISITORS,
     icon: <Users size={17} />,
-    roles: ['SUPER_ADMIN', 'MANAGER', 'STAFF'],
+    roles: ['ADMIN', 'MANAGER', 'STAFF'],
   },
   {
     label: 'Reports',
     path: ROUTE_PATHS.REPORTS,
     icon: <FileText size={17} />,
-    roles: ['SUPER_ADMIN', 'MANAGER'],
+    roles: ['ADMIN', 'MANAGER'],
   },
   {
     label: 'Users',
     path: ROUTE_PATHS.USERS,
     icon: <Users size={17} />,
-    roles: ['SUPER_ADMIN', 'MANAGER'],
+    roles: ['ADMIN', 'MANAGER'],
   },
   {
     label: 'Sites',
     path: ROUTE_PATHS.SITES,
     icon: <Building2 size={17} />,
-    roles: ['SUPER_ADMIN'],
+    roles: ['ADMIN'],
   },
 ]
 
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
   MANAGER: 'Manager',
   STAFF: 'Staff',
 }
@@ -173,16 +172,6 @@ export default function AppShell() {
               </li>
             ))}
           </ul>
-
-          {/* Super Admin section label */}
-          {isRole('SUPER_ADMIN') && (
-            <div className="mt-6 mb-2 px-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Shield size={11} />
-                Admin
-              </p>
-            </div>
-          )}
         </nav>
 
         {/* User footer */}

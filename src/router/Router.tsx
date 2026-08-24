@@ -34,11 +34,11 @@ export const router = createBrowserRouter([
 
           // manager + super admin only
           {
-            element: <ProtectedRoute allowedRoles={['MANAGER', 'SUPER_ADMIN']} />,
+            element: <ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />,
             children: [
               {
                 path: ROUTE_PATHS.DASHBOARD,
-                lazy: () => import('../pages/Dashboard')
+                lazy: () => import('../pages/dashboard/Dashboard')
                   .then((m) => ({ Component: m.default })),
               },
               {
@@ -56,7 +56,7 @@ export const router = createBrowserRouter([
 
           // super admin only
           {
-            element: <ProtectedRoute allowedRoles={['SUPER_ADMIN']} />,
+            element: <ProtectedRoute allowedRoles={['ADMIN']} />,
             children: [
               {
                 path: ROUTE_PATHS.ADMIN,
