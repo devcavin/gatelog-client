@@ -1,6 +1,6 @@
 <div align="center">
   
-  ![Frontend CI](https://github.com/devcavin/gatelog/actions/workflows/ci.yaml/badge.svg)
+  ![Frontend CI](https://github.com/devcavin/gatelog-client/actions/workflows/ci.yaml/badge.svg)
   ![License](https://img.shields.io/badge/license-MIT-blue.svg)
   ![TypeScript](https://img.shields.io/badge/TypeScript-5.2.2-blue.svg)
   ![React](https://img.shields.io/badge/React-18.2.0-blue.svg)
