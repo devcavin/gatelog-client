@@ -9,4 +9,4 @@
   
 </div>
 
-# Gatelog - Visitor Management System
+# Gatelog - Digital Visitor Management System
